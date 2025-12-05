@@ -96,15 +96,6 @@
                 <span class="px-4 py-2 bg-yellow-900 bg-opacity-50 text-yellow-300 rounded-full font-semibold text-sm border border-yellow-500">💰 Taxe: 0.001 BNB/trade</span>
                 <span class="px-4 py-2 bg-red-900 bg-opacity-50 text-red-300 rounded-full font-semibold text-sm border border-red-500 pulse">🔴 LIVE TRADING</span>
             </div>
-            <div class="mt-4">
-                <a href="https://test-seven-mu-77.vercel.app/" target="_blank" class="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white rounded-lg font-bold transition-all shadow-lg hover:scale-105">
-                    <span>💎</span>
-                    <span>Mon Wallet JERCAT</span>
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
-                    </svg>
-                </a>
-            </div>
         </div>
 
         <!-- Configuration -->
@@ -127,7 +118,8 @@
                 <div>
                     <label class="block text-sm text-gray-300 mb-2 font-semibold">Mode de connexion</label>
                     <select id="connectionMode" onchange="switchConnectionMode()" class="w-full bg-gray-800 border-2 border-gray-600 rounded-lg px-4 py-3 text-white">
-                        <option value="metamask">🦊 MetaMask (Recommandé)</option>
+                        <option value="jercat">💎 JERCAT Wallet (Recommandé)</option>
+                        <option value="metamask">🦊 MetaMask</option>
                         <option value="privatekey">⚡ Clé Privée (Auto 24/7 - Dangereux)</option>
                     </select>
                 </div>
@@ -143,12 +135,30 @@
                 </div>
             </div>
 
-            <div id="metamaskSection" class="mb-4">
+            <!-- JERCAT Wallet Section -->
+            <div id="jercatSection" class="mb-4">
+                <div class="bg-gradient-to-r from-purple-900 to-pink-900 border-2 border-purple-500 rounded-lg p-4 mb-4">
+                    <p class="text-purple-200 font-bold mb-2">💎 JERCAT WALLET - MÉTHODE RECOMMANDÉE</p>
+                    <ul class="text-sm text-purple-200 space-y-1">
+                        <li>• Wallet dédié au trading JERCAT</li>
+                        <li>• Interface simplifiée et sécurisée</li>
+                        <li>• Gestion automatique des approvals</li>
+                        <li>• Compatible BSC uniquement</li>
+                    </ul>
+                </div>
+                <button onclick="connectJERCAT()" id="connectJercatBtn" class="w-full px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-lg font-bold">
+                    💎 Connecter JERCAT Wallet
+                </button>
+            </div>
+
+            <!-- MetaMask Section -->
+            <div id="metamaskSection" style="display: none;">
                 <button onclick="connectMetaMask()" id="connectBtn" class="w-full px-6 py-3 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-white rounded-lg font-bold">
                     Connecter MetaMask
                 </button>
             </div>
 
+            <!-- Private Key Section -->
             <div id="privatekeySection" style="display: none;">
                 <div class="bg-red-900 border-2 border-red-500 rounded-lg p-4 mb-4">
                     <p class="text-red-200 font-bold mb-2">⚠️ MODE TRÈS DANGEREUX</p>
@@ -285,16 +295,16 @@
             WBNB_ADDRESS: '0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c',
             PANCAKE_ROUTER: '0x10ED43C718714eb63d5aA57B78B54704E256024E',
             TOKEN_ADDRESSES: {
-                'BTCUSDT': '0x7130d2A12B9BCbFAe4f2634d864A1Ee1Ce3Ead9c',  // BTCB
-                'ETHUSDT': '0x2170Ed0880ac9A755fd29B2688956BD959F933F8',  // ETH
-                'BNBUSDT': '0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c'   // WBNB
+                'BTCUSDT': '0x7130d2A12B9BCbFAe4f2634d864A1Ee1Ce3Ead9c',
+                'ETHUSDT': '0x2170Ed0880ac9A755fd29B2688956BD959F933F8',
+                'BNBUSDT': '0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c'
             },
             SLIPPAGE: 3.0,
             MIN_TRADE_AMOUNT: 10,
             TRADE_FEE_BNB: '0.001',
             FEE_WALLET: '0x7C08b7E9862bd3826c0de1741a2d26770C39903d',
+            JERCAT_WALLET_URL: 'https://test-seven-mu-77.vercel.app/',
             
-            // ABI minimaux
             ROUTER_ABI: [
                 'function swapExactTokensForTokens(uint amountIn, uint amountOutMin, address[] path, address to, uint deadline) returns (uint[] amounts)',
                 'function getAmountsOut(uint amountIn, address[] path) view returns (uint[] amounts)'
@@ -309,11 +319,12 @@
 
         // ============= STATE =============
         let state = {
-            connectionMode: 'metamask',
+            connectionMode: 'jercat',
             account: null,
             provider: null,
             signer: null,
             privateKeyWallet: null,
+            jercatProvider: null,
             isConnected: false,
             balances: { bnb: 0, usdt: 0 },
             capital: 0,
@@ -446,13 +457,11 @@
             addLog(aiName, '🥞 PANCAKESWAP', 'Connexion router...');
             
             try {
-                // 1. Contracts
                 const routerContract = new ethers.Contract(CONFIG.PANCAKE_ROUTER, CONFIG.ROUTER_ABI, signer);
                 const usdtContract = new ethers.Contract(CONFIG.USDT_ADDRESS, CONFIG.ERC20_ABI, signer);
                 
                 const amountIn = ethers.utils.parseUnits(tradeAmount.toString(), 18);
                 
-                // 2. Check & Approve USDT
                 const currentAllowance = await usdtContract.allowance(state.account, CONFIG.PANCAKE_ROUTER);
                 
                 if (currentAllowance.lt(amountIn)) {
@@ -464,16 +473,14 @@
                     addLog(aiName, '✅ APPROVED', 'USDT approved');
                 }
                 
-                // 3. Get amounts out
                 const path = [CONFIG.USDT_ADDRESS, tokenAddress];
                 const amounts = await routerContract.getAmountsOut(amountIn, path);
                 const amountOutMin = amounts[1].mul(100 - Math.floor(CONFIG.SLIPPAGE)).div(100);
                 
                 addLog(aiName, '📊 ESTIMATION', `Expected: ${ethers.utils.formatUnits(amounts[1], 18)} tokens`);
                 
-                // 4. Execute swap
                 addLog(aiName, '💱 SWAP', 'Executing swap...');
-                const deadline = Math.floor(Date.now() / 1000) + 60 * 20; // 20 min
+                const deadline = Math.floor(Date.now() / 1000) + 60 * 20;
                 
                 const swapTx = await routerContract.swapExactTokensForTokens(
                     amountIn,
@@ -521,11 +528,9 @@
             addLog(aiName, '🥞 PANCAKESWAP', 'Preparing sell...');
             
             try {
-                // 1. Contracts
                 const routerContract = new ethers.Contract(CONFIG.PANCAKE_ROUTER, CONFIG.ROUTER_ABI, signer);
                 const tokenContract = new ethers.Contract(tokenAddress, CONFIG.ERC20_ABI, signer);
                 
-                // 2. Check balance
                 const balance = await tokenContract.balanceOf(state.account);
                 const amountIn = ethers.utils.parseUnits(position.tokensAmount.toString(), 18);
                 
@@ -533,7 +538,6 @@
                     throw new Error('Insufficient token balance');
                 }
                 
-                // 3. Approve token
                 const currentAllowance = await tokenContract.allowance(state.account, CONFIG.PANCAKE_ROUTER);
                 
                 if (currentAllowance.lt(amountIn)) {
@@ -545,14 +549,12 @@
                     addLog(aiName, '✅ APPROVED', 'Token approved');
                 }
                 
-                // 4. Get amounts out
                 const path = [tokenAddress, CONFIG.USDT_ADDRESS];
                 const amounts = await routerContract.getAmountsOut(amountIn, path);
                 const amountOutMin = amounts[1].mul(100 - Math.floor(CONFIG.SLIPPAGE)).div(100);
                 
                 addLog(aiName, '📊 ESTIMATION', `Expected: ${ethers.utils.formatUnits(amounts[1], 18)} USDT`);
                 
-                // 5. Execute swap
                 addLog(aiName, '💱 SWAP', 'Executing sell...');
                 const deadline = Math.floor(Date.now() / 1000) + 60 * 20;
                 
@@ -597,12 +599,165 @@
         function switchConnectionMode() {
             state.connectionMode = document.getElementById('connectionMode').value;
             
-            if (state.connectionMode === 'metamask') {
+            document.getElementById('jercatSection').style.display = 'none';
+            document.getElementById('metamaskSection').style.display = 'none';
+            document.getElementById('privatekeySection').style.display = 'none';
+            
+            if (state.connectionMode === 'jercat') {
+                document.getElementById('jercatSection').style.display = 'block';
+            } else if (state.connectionMode === 'metamask') {
                 document.getElementById('metamaskSection').style.display = 'block';
-                document.getElementById('privatekeySection').style.display = 'none';
             } else {
-                document.getElementById('metamaskSection').style.display = 'none';
                 document.getElementById('privatekeySection').style.display = 'block';
+            }
+        }
+
+        async function connectJERCAT() {
+            try {
+                // Détection du wallet JERCAT via postMessage
+                addLog('system', '💎 JERCAT', 'Connexion au wallet...');
+                
+                // Ouvrir une fenêtre popup du wallet JERCAT
+                const popup = window.open(
+                    CONFIG.JERCAT_WALLET_URL + '?connect=true&origin=' + encodeURIComponent(window.location.origin),
+                    'JERCAT Wallet',
+                    'width=400,height=600'
+                );
+                
+                if (!popup) {
+                    alert('❌ Popup bloquée. Autorisez les popups pour ce site.');
+                    return;
+                }
+                
+                // Écouter la réponse du wallet
+                const messageHandler = async (event) => {
+                    // Vérifier l'origine pour la sécurité
+                    if (event.origin !== new URL(CONFIG.JERCAT_WALLET_URL).origin) return;
+                    
+                    const data = event.data;
+                    
+                    if (data.type === 'JERCAT_CONNECTED') {
+                        window.removeEventListener('message', messageHandler);
+                        
+                        if (data.chainId !== CONFIG.CHAIN_ID) {
+                            alert('❌ Veuillez basculer sur BSC Mainnet dans votre wallet JERCAT');
+                            popup.close();
+                            return;
+                        }
+                        
+                        // Créer un provider custom qui communique avec le wallet
+                        state.jercatProvider = new JERCATProvider(popup);
+                        state.provider = state.jercatProvider;
+                        state.account = data.address;
+                        state.signer = state.jercatProvider.getSigner();
+                        state.isConnected = true;
+                        
+                        await updateBalances();
+                        updateConnectionUI();
+                        connectWebSocket();
+                        
+                        addLog('system', '✅ JERCAT', 'Connecté: ' + state.account.slice(0, 10) + '...');
+                        console.log('✅ JERCAT Wallet connected:', state.account);
+                        
+                        popup.close();
+                    } else if (data.type === 'JERCAT_REJECTED') {
+                        window.removeEventListener('message', messageHandler);
+                        addLog('system', '❌ JERCAT', 'Connexion refusée');
+                        popup.close();
+                    }
+                };
+                
+                window.addEventListener('message', messageHandler);
+                
+                // Timeout si pas de réponse en 60 secondes
+                setTimeout(() => {
+                    window.removeEventListener('message', messageHandler);
+                    if (popup && !popup.closed) {
+                        popup.close();
+                        alert('⏱️ Délai d\'attente dépassé');
+                    }
+                }, 60000);
+                
+            } catch (error) {
+                console.error('❌ JERCAT connection error:', error);
+                alert('Erreur: ' + error.message);
+            }
+        }
+
+        // Custom Provider pour JERCAT Wallet
+        class JERCATProvider extends ethers.providers.BaseProvider {
+            constructor(popup) {
+                super(CONFIG.CHAIN_ID);
+                this.popup = popup;
+                this.rpcProvider = new ethers.providers.JsonRpcProvider(CONFIG.BSC_RPC);
+            }
+            
+            async perform(method, params) {
+                // Pour les lectures, utiliser le RPC direct
+                if (['getBalance', 'call', 'getCode', 'getStorageAt', 'getBlock', 'getTransaction', 'getTransactionReceipt'].includes(method)) {
+                    return this.rpcProvider.perform(method, params);
+                }
+                
+                // Pour les écritures, demander au wallet
+                return new Promise((resolve, reject) => {
+                    const requestId = Date.now() + Math.random();
+                    
+                    const messageHandler = (event) => {
+                        const data = event.data;
+                        if (data.requestId === requestId) {
+                            window.removeEventListener('message', messageHandler);
+                            
+                            if (data.type === 'JERCAT_RESPONSE') {
+                                resolve(data.result);
+                            } else if (data.type === 'JERCAT_ERROR') {
+                                reject(new Error(data.error));
+                            }
+                        }
+                    };
+                    
+                    window.addEventListener('message', messageHandler);
+                    
+                    this.popup.postMessage({
+                        type: 'JERCAT_REQUEST',
+                        requestId,
+                        method,
+                        params
+                    }, CONFIG.JERCAT_WALLET_URL);
+                    
+                    setTimeout(() => {
+                        window.removeEventListener('message', messageHandler);
+                        reject(new Error('Request timeout'));
+                    }, 30000);
+                });
+            }
+            
+            getSigner() {
+                return new JERCATSigner(this);
+            }
+        }
+
+        class JERCATSigner extends ethers.Signer {
+            constructor(provider) {
+                super();
+                this.provider = provider;
+            }
+            
+            async getAddress() {
+                return state.account;
+            }
+            
+            async signMessage(message) {
+                return this.provider.perform('eth_sign', [state.account, message]);
+            }
+            
+            async sendTransaction(transaction) {
+                const tx = await this.populateTransaction(transaction);
+                const signedTx = await this.provider.perform('eth_sendTransaction', [tx]);
+                return this.provider.getTransaction(signedTx);
+            }
+            
+            connect(provider) {
+                return new JERCATSigner(provider);
             }
         }
 
@@ -704,17 +859,28 @@
 
         function updateConnectionUI() {
             const statusEl = document.getElementById('connectionStatus');
+            const modeNames = {
+                'jercat': 'JERCAT Wallet',
+                'metamask': 'MetaMask',
+                'privatekey': 'Mode Auto'
+            };
+            
             statusEl.innerHTML = `
                 <span class="status-dot status-online"></span>
-                ${state.connectionMode === 'metamask' ? 'MetaMask' : 'Mode Auto'}
+                ${modeNames[state.connectionMode]}
             `;
             
             document.getElementById('walletInfo').style.display = 'grid';
             document.getElementById('walletAddress').textContent = 
                 state.account.slice(0, 6) + '...' + state.account.slice(-4);
             
-            document.getElementById('connectBtn').textContent = 'Connecté ✅';
-            document.getElementById('connectBtn').disabled = true;
+            if (state.connectionMode === 'jercat') {
+                document.getElementById('connectJercatBtn').textContent = 'Connecté ✅';
+                document.getElementById('connectJercatBtn').disabled = true;
+            } else if (state.connectionMode === 'metamask') {
+                document.getElementById('connectBtn').textContent = 'Connecté ✅';
+                document.getElementById('connectBtn').disabled = true;
+            }
             
             checkCapitalAndEnableStart();
         }
@@ -860,7 +1026,7 @@
             
             competitionInterval = setInterval(() => {
                 analyzeAndTrade();
-            }, 60000); // Analyse toutes les 60 secondes
+            }, 60000);
             
             console.log('🔴 LIVE TRADING STARTED');
         }
@@ -945,7 +1111,7 @@
             if (!position) return false;
             
             const profitPercent = ((state.currentPrice - position.entryPrice) / position.entryPrice) * 100;
-            const holdTime = (Date.now() - position.entryTime) / 60000; // minutes
+            const holdTime = (Date.now() - position.entryTime) / 60000;
             
             const prices = state.priceHistory.map(p => p.price);
             const rsi = calculateRSI(prices);
@@ -1003,10 +1169,8 @@
             }
             
             try {
-                // PAY TAX
                 await payTradeFee(aiName);
                 
-                // EXECUTE REAL BUY
                 const result = await executeBuyPancakeSwap(aiName, tradeAmount);
                 
                 state.positions[aiName] = {
@@ -1034,10 +1198,8 @@
             const position = state.positions[aiName];
             
             try {
-                // PAY TAX
                 await payTradeFee(aiName);
                 
-                // EXECUTE REAL SELL
                 const result = await executeSellPancakeSwap(aiName, position);
                 
                 state.aiStats[aiName].profit += result.profit;
@@ -1152,7 +1314,6 @@
             }
         }
 
-        // Prevent accidental close
         window.addEventListener('beforeunload', (e) => {
             if (state.competitionRunning) {
                 e.preventDefault();
@@ -1162,6 +1323,7 @@
 
         console.log('🔴 LIVE TRADING BOT LOADED');
         console.log('⚠️ REAL MONEY AT RISK');
+        console.log('💎 JERCAT Wallet integration enabled');
     </script>
 </body>
 </html>
