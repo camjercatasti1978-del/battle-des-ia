@@ -1,15 +1,11 @@
 {
-  "name": "battle-des-ia",
+  "name": "ai-trading-bot",
   "version": "1.0.0",
-  "main": "server.js",
+  "description": "AI Trading Bot - Live Trading sur BSC",
+  "engines": {
+    "node": "24.x"
+  },
   "scripts": {
     "start": "node server.js"
-  },
-  "dependencies": {
-    "express": "^4.18.2",
-    "cors": "^2.8.5"
-  },
-  "engines": {
-    "node": "18.x"
   }
 }
