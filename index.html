@@ -879,11 +879,6 @@
                 return;
             }
             
-            if (capital > state.balances.usdt) {
-                alert('❌ Capital > solde disponible');
-                return;
-            }
-            
             if (!confirm(`⚠️ Confirmer capital ${capital} USDT pour LIVE trading ?`)) {
                 return;
             }
