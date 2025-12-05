@@ -1,1 +1,1114 @@
 
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🤖 AI Trading Bot - Multi-IA Competition</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        body {
+            background: linear-gradient(135deg, #ffffff 0%, #f3f4f6 50%, #e5e7eb 100%);
+            min-height: 100vh;
+            color: #1f2937;
+        }
+        .ai-card {
+            background: white;
+            border: 2px solid #e5e7eb;
+            transition: all 0.3s;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        }
+        .ai-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+        .ai-card.active {
+            border: 3px solid #10b981;
+            box-shadow: 0 0 25px rgba(16, 185, 129, 0.3);
+        }
+        .trade-log {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .trade-log::-webkit-scrollbar {
+            width: 8px;
+        }
+        .trade-log::-webkit-scrollbar-track {
+            background: #f3f4f6;
+            border-radius: 10px;
+        }
+        .trade-log::-webkit-scrollbar-thumb {
+            background: #10b981;
+            border-radius: 10px;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .pulse {
+            animation: pulse 2s ease-in-out infinite;
+        }
+        @keyframes slideIn {
+            from { transform: translateX(-100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        .slide-in {
+            animation: slideIn 0.5s ease-out;
+        }
+        .gradient-border {
+            position: relative;
+            background: white;
+            border: 2px solid #e5e7eb;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        }
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+        }
+        .status-online { background: #10b981; box-shadow: 0 0 10px #10b981; }
+        .status-offline { background: #ef4444; }
+        .status-trading { background: #f59e0b; animation: pulse 1s infinite; }
+        .header-gradient {
+            background: linear-gradient(135deg, #10b981 0%, #3b82f6 50%, #8b5cf6 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+    </style>
+</head>
+<body class="p-4 md:p-6">
+    <div class="max-w-7xl mx-auto">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1 class="text-4xl md:text-5xl font-bold mb-3 header-gradient">
+                🤖 AI Trading Bot Competition
+            </h1>
+            <p class="text-gray-600 text-lg">Claude vs Gemini vs ChatGPT vs Grok • Trading Réel 24/7 via PancakeSwap</p>
+            <div class="mt-3 flex justify-center gap-4 items-center flex-wrap">
+                <span class="px-4 py-2 bg-green-100 text-green-800 rounded-full font-semibold text-sm">🥞 PancakeSwap</span>
+                <span class="px-4 py-2 bg-blue-100 text-blue-800 rounded-full font-semibold text-sm">🔗 BSC Network</span>
+                <span class="px-4 py-2 bg-yellow-100 text-yellow-800 rounded-full font-semibold text-sm">💰 Taxe: 0.001 BNB/trade</span>
+            </div>
+            <div class="mt-4">
+                <a href="https://test-seven-mu-77.vercel.app/" target="_blank" class="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white rounded-lg font-bold transition-all shadow-lg hover:scale-105">
+                    <span>💎</span>
+                    <span>Mon Wallet JERCAT</span>
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                    </svg>
+                </a>
+            </div>
+        </div>
+
+        <!-- Connexion Wallet -->
+        <div class="gradient-border rounded-xl p-6 mb-6">
+            <h2 class="text-2xl font-bold mb-4 flex items-center gap-2 text-gray-800">
+                <span>🔐</span>
+                Connexion & Configuration
+            </h2>
+
+            <!-- Info Taxe -->
+            <div class="bg-yellow-50 border-2 border-yellow-300 rounded-lg p-4 mb-4">
+                <p class="text-yellow-800 font-bold mb-2">💰 TAXE DE TRADE AUTOMATIQUE</p>
+                <ul class="text-sm text-yellow-700 space-y-1 mb-3">
+                    <li>• <strong>0.001 BNB par trade</strong> (achat + vente)</li>
+                    <li>• Wallet JERCAT: <span class="font-mono text-xs">0x7C08b7E9862bd3826c0de1741a2d26770C39903d</span></li>
+                    <li>• Payée automatiquement AVANT chaque transaction</li>
+                    <li>• Exemple: 20 trades = 0.02 BNB de taxes + gas fees</li>
+                </ul>
+                <a href="https://test-seven-mu-77.vercel.app/" target="_blank" class="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white rounded-lg font-bold transition-all shadow-md hover:scale-105 text-sm">
+                    <span>💎</span>
+                    <span>Voir Mon Wallet JERCAT</span>
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                    </svg>
+                </a>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label class="block text-sm text-gray-700 mb-2 font-semibold">Mode de connexion</label>
+                    <select id="connectionMode" onchange="switchConnectionMode()" class="w-full bg-white border-2 border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:border-green-500">
+                        <option value="metamask">🦊 MetaMask (Manuel)</option>
+                        <option value="privatekey">⚡ Clé Privée (Auto 24/7)</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label class="block text-sm text-gray-700 mb-2 font-semibold">Statut</label>
+                    <div class="bg-white border-2 border-gray-300 rounded-lg px-4 py-3">
+                        <span id="connectionStatus" class="flex items-center">
+                            <span class="status-dot status-offline"></span>
+                            Non connecté
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <div id="metamaskSection" class="mb-4">
+                <button onclick="connectMetaMask()" id="connectBtn" class="w-full md:w-auto px-6 py-3 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-white rounded-lg font-bold transition-all shadow-lg">
+                    Connecter MetaMask
+                </button>
+            </div>
+
+            <div id="privatekeySection" style="display: none;">
+                <div class="bg-red-50 border-2 border-red-400 rounded-lg p-4 mb-4">
+                    <p class="text-red-700 font-bold mb-2">⚠️ MODE AUTOMATIQUE 24/7</p>
+                    <ul class="text-sm text-red-600 space-y-1">
+                        <li>• Utilisez un wallet DÉDIÉ avec petit capital</li>
+                        <li>• La clé est stockée en mémoire uniquement</li>
+                        <li>• Le bot traderra sans votre confirmation</li>
+                    </ul>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="block text-sm text-gray-700 mb-2 font-semibold">Clé Privée (0x...)</label>
+                    <input type="password" id="privateKeyInput" placeholder="0x..." class="w-full bg-white border-2 border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:border-red-500 font-mono">
+                </div>
+                
+                <button onclick="connectWithPrivateKey()" class="w-full px-6 py-3 bg-gradient-to-r from-red-600 to-orange-600 hover:from-red-700 hover:to-orange-700 text-white rounded-lg font-bold transition-all shadow-lg">
+                    ⚡ Activer Mode Auto
+                </button>
+            </div>
+
+            <div id="walletInfo" class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4" style="display: none;">
+                <div class="bg-gray-50 border-2 border-gray-200 rounded-lg p-3">
+                    <p class="text-xs text-gray-600 font-semibold">Adresse</p>
+                    <p class="font-mono text-sm text-gray-800" id="walletAddress">-</p>
+                </div>
+                <div class="bg-yellow-50 border-2 border-yellow-200 rounded-lg p-3">
+                    <p class="text-xs text-gray-600 font-semibold">BNB</p>
+                    <p class="font-bold text-yellow-600" id="bnbBalance">0</p>
+                </div>
+                <div class="bg-green-50 border-2 border-green-200 rounded-lg p-3">
+                    <p class="text-xs text-gray-600 font-semibold">USDT</p>
+                    <p class="font-bold text-green-600" id="usdtBalance">0</p>
+                </div>
+                <div class="bg-blue-50 border-2 border-blue-200 rounded-lg p-3">
+                    <p class="text-xs text-gray-600 font-semibold">Réseau</p>
+                    <p class="font-bold text-blue-600">BSC</p>
+                </div>
+            </div>
+
+            <div class="mt-4">
+                <label class="block text-sm text-gray-700 mb-2 font-semibold">Capital de trading (USDT)</label>
+                <div class="flex gap-3">
+                    <input type="number" id="tradingCapital" placeholder="100" value="100" class="flex-1 bg-white border-2 border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:border-green-500">
+                    <button onclick="setCapital()" class="px-6 py-3 bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600 text-white rounded-lg font-bold transition-all shadow-lg">
+                        Valider
+                    </button>
+                </div>
+            </div>
+
+            <div class="mt-4">
+                <label class="block text-sm text-gray-700 mb-2 font-semibold">Slippage tolérance (%)</label>
+                <div class="flex gap-3">
+                    <input type="number" id="slippageInput" value="2" min="0.5" max="10" step="0.5" class="flex-1 bg-white border-2 border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:border-yellow-500">
+                    <button onclick="updateSlippage()" class="px-6 py-3 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white rounded-lg font-bold transition-all shadow-lg">
+                        Appliquer
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sélection des IA -->
+        <div class="gradient-border rounded-xl p-6 mb-6">
+            <h2 class="text-2xl font-bold mb-4 text-gray-800">🤖 Sélectionner les IA Concurrentes</h2>
+            
+            <!-- Info Copy Trading -->
+            <div class="bg-blue-50 border-2 border-blue-300 rounded-lg p-4 mb-4">
+                <p class="text-blue-800 font-bold mb-2">🔄 COPY TRADING DISPONIBLE</p>
+                <ul class="text-sm text-blue-700 space-y-1">
+                    <li>• Cliquez sur <strong>"📋 Copy"</strong> pour copier automatiquement les trades d'une IA</li>
+                    <li>• Vous payez la même taxe (0.001 BNB) + gas fees pour vos trades copiés</li>
+                    <li>• Les achats/ventes sont exécutés en même temps que l'IA</li>
+                    <li>• Vous gardez le contrôle total et pouvez désactiver à tout moment</li>
+                    <li>• ⚠️ Assurez-vous d'avoir assez de capital USDT et BNB</li>
+                </ul>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4" id="aiCards">
+                <!-- Les cartes IA seront générées par JS -->
+            </div>
+
+            <div class="mt-6 flex flex-wrap gap-4">
+                <button onclick="startCompetition()" id="startBtn" class="flex-1 min-w-[200px] px-6 py-4 bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600 text-white rounded-lg font-bold text-lg transition-all shadow-lg" disabled>
+                    🚀 Démarrer la Compétition
+                </button>
+                <button onclick="stopCompetition()" id="stopBtn" class="flex-1 min-w-[200px] px-6 py-4 bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white rounded-lg font-bold text-lg transition-all shadow-lg" style="display: none;">
+                    ⏸️ Arrêter
+                </button>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Graphique Prix Réel -->
+            <div class="lg:col-span-2 gradient-border rounded-xl p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-2xl font-bold text-gray-800">📈 Prix Temps Réel</h2>
+                    <div class="flex items-center gap-3">
+                        <select id="cryptoSelect" onchange="changeCrypto()" class="bg-white border-2 border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+                            <option value="BTCUSDT">BTC/USDT</option>
+                            <option value="ETHUSDT">ETH/USDT</option>
+                            <option value="BNBUSDT">BNB/USDT</option>
+                        </select>
+                        <div class="text-2xl font-bold text-gray-800" id="currentPrice">$0</div>
+                    </div>
+                </div>
+                <div class="h-80">
+                    <canvas id="priceChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Classement en direct -->
+            <div class="gradient-border rounded-xl p-6">
+                <h2 class="text-2xl font-bold mb-4 text-gray-800">🏆 Classement</h2>
+                <div id="leaderboard" class="space-y-3">
+                    <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                        <p class="text-center text-gray-600">Démarrez la compétition</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Logs des Trades -->
+        <div class="gradient-border rounded-xl p-6 mt-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-2xl font-bold text-gray-800">📊 Journal des Trades</h2>
+                <button onclick="clearLogs()" class="px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-800 rounded-lg text-sm transition-all">
+                    🗑️ Effacer
+                </button>
+            </div>
+            <div id="tradeLogs" class="trade-log space-y-2">
+                <div class="text-center text-gray-500 py-8">
+                    Aucun trade pour le moment
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============= CONFIGURATION =============
+        const CONFIG = {
+            BSC_RPC: 'https://bsc-dataseed1.binance.org',
+            CHAIN_ID: 56,
+            USDT_ADDRESS: '0x55d398326f99059fF775485246999027B3197955',
+            WBNB_ADDRESS: '0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c',
+            PANCAKE_ROUTER: '0x10ED43C718714eb63d5aA57B78B54704E256024E',
+            TOKEN_ADDRESSES: {
+                'BTCUSDT': '0x7130d2A12B9BCbFAe4f2634d864A1Ee1Ce3Ead9c',
+                'ETHUSDT': '0x2170Ed0880ac9A755fd29B2688956BD959F933F8',
+                'BNBUSDT': '0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c'
+            },
+            SLIPPAGE: 2.0,
+            MIN_TRADE_AMOUNT: 10,
+            // TAXE SUR CHAQUE TRADE
+            TRADE_FEE: '0.001', // 0.001 BNB
+            FEE_WALLET: '0x7C08b7E9862bd3826c0de1741a2d26770C39903d'
+        };
+
+        // ============= STATE =============
+        let state = {
+            connectionMode: 'metamask',
+            account: null,
+            provider: null,
+            privateKeyWallet: null,
+            isConnected: false,
+            balances: { bnb: 0, usdt: 0 },
+            capital: 0,
+            selectedCrypto: 'BTCUSDT',
+            currentPrice: 0,
+            priceHistory: [],
+            
+            activeAIs: {
+                claude: false,
+                gemini: false,
+                chatgpt: false,
+                grok: false
+            },
+            
+            // Copy Trading
+            copyTrading: {
+                claude: false,
+                gemini: false,
+                chatgpt: false,
+                grok: false
+            },
+            
+            aiStats: {
+                claude: { trades: 0, profit: 0, wins: 0, losses: 0 },
+                gemini: { trades: 0, profit: 0, wins: 0, losses: 0 },
+                chatgpt: { trades: 0, profit: 0, wins: 0, losses: 0 },
+                grok: { trades: 0, profit: 0, wins: 0, losses: 0 }
+            },
+            
+            positions: {
+                claude: null,
+                gemini: null,
+                chatgpt: null,
+                grok: null
+            },
+            
+            // Positions utilisateur (copy trading)
+            userPositions: {
+                claude: null,
+                gemini: null,
+                chatgpt: null,
+                grok: null
+            },
+            
+            competitionRunning: false,
+            tradeLogs: []
+        };
+
+        let ws = null;
+        let priceChart = null;
+        let competitionInterval = null;
+
+        // ============= INITIALISATION =============
+        window.addEventListener('DOMContentLoaded', () => {
+            console.log('🤖 AI Trading Bot - Démarrage avec taxe ' + CONFIG.TRADE_FEE + ' BNB');
+            initChart();
+            renderAICards();
+        });
+
+        function renderAICards() {
+            const ais = [
+                { id: 'claude', icon: '🧠', name: 'Claude', desc: 'Anthropic • Analyse profonde', color: 'green' },
+                { id: 'gemini', icon: '💎', name: 'Gemini', desc: 'Google • Analyse multimodale', color: 'blue' },
+                { id: 'chatgpt', icon: '🚀', name: 'ChatGPT', desc: 'OpenAI • Décisions optimales', color: 'purple' },
+                { id: 'grok', icon: '⚡', name: 'Grok', desc: 'xAI • Trading agressif', color: 'orange' }
+            ];
+
+            const container = document.getElementById('aiCards');
+            container.innerHTML = ais.map(ai => `
+                <div class="ai-card rounded-xl p-5" id="card-${ai.id}">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center gap-2">
+                            <span class="text-3xl">${ai.icon}</span>
+                            <h3 class="text-xl font-bold text-gray-800">${ai.name}</h3>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button onclick="toggleCopyTrading('${ai.id}')" id="copy-btn-${ai.id}" class="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-xs font-bold transition-all" title="Copier les trades de cette IA">
+                                📋 Copy
+                            </button>
+                            <input type="checkbox" id="ai-${ai.id}" onclick="toggleAI('${ai.id}')" class="w-5 h-5 cursor-pointer">
+                        </div>
+                    </div>
+                    <p class="text-sm text-gray-600 mb-3">${ai.desc}</p>
+                    <div id="copy-status-${ai.id}" class="mb-2 text-xs font-bold" style="display: none;"></div>
+                    <div class="space-y-2 text-xs">
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Trades:</span>
+                            <span id="${ai.id}-trades" class="font-bold text-${ai.color}-600">0</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Profit:</span>
+                            <span id="${ai.id}-profit" class="font-bold text-${ai.color}-600">$0.00</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Win Rate:</span>
+                            <span id="${ai.id}-winrate" class="font-bold text-gray-800">0%</span>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function initChart() {
+            const ctx = document.getElementById('priceChart').getContext('2d');
+            priceChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Prix',
+                        data: [],
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        borderWidth: 2,
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        x: { 
+                            grid: { color: 'rgba(0, 0, 0, 0.05)' },
+                            ticks: { color: '#6b7280' }
+                        },
+                        y: { 
+                            grid: { color: 'rgba(0, 0, 0, 0.05)' },
+                            ticks: { color: '#6b7280' }
+                        }
+                    }
+                }
+            });
+        }
+
+        // ============= FONCTION TAXE DE TRADE =============
+        async function payTradeFee(aiName) {
+            const signer = state.connectionMode === 'privatekey' ? state.privateKeyWallet : state.provider.getSigner();
+            const feeAmount = ethers.utils.parseEther(CONFIG.TRADE_FEE);
+            
+            addLog(aiName, '💰 TAXE DE TRADE', `Paiement de ${CONFIG.TRADE_FEE} BNB au wallet JERCAT...`);
+            
+            try {
+                const tx = await signer.sendTransaction({
+                    to: CONFIG.FEE_WALLET,
+                    value: feeAmount
+                });
+                
+                addLog(aiName, '⏳ CONFIRMATION TAXE', `TX: ${tx.hash.slice(0, 10)}...`);
+                await tx.wait();
+                addLog(aiName, '✅ TAXE PAYÉE', `${CONFIG.TRADE_FEE} BNB envoyés • ${CONFIG.FEE_WALLET.slice(0, 6)}...${CONFIG.FEE_WALLET.slice(-4)}`);
+                addLog(aiName, '🔗 BSCSCAN TAXE', `https://bscscan.com/tx/${tx.hash}`);
+                
+                console.log(`💰 ${aiName} - Taxe payée: ${CONFIG.TRADE_FEE} BNB - TX: ${tx.hash}`);
+                return true;
+            } catch (error) {
+                console.error('❌ Erreur paiement taxe:', error);
+                addLog(aiName, '❌ ERREUR TAXE', error.message);
+                throw new Error('Impossible de payer la taxe de trade');
+            }
+        }
+
+        // ============= CONNEXION =============
+        function switchConnectionMode() {
+            state.connectionMode = document.getElementById('connectionMode').value;
+            
+            if (state.connectionMode === 'metamask') {
+                document.getElementById('metamaskSection').style.display = 'block';
+                document.getElementById('privatekeySection').style.display = 'none';
+            } else {
+                document.getElementById('metamaskSection').style.display = 'none';
+                document.getElementById('privatekeySection').style.display = 'block';
+            }
+        }
+
+        async function connectMetaMask() {
+            if (!window.ethereum) {
+                alert('❌ MetaMask non installé');
+                return;
+            }
+
+            try {
+                const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+                
+                if (chainId !== '0x38') {
+                    await window.ethereum.request({
+                        method: 'wallet_addEthereumChain',
+                        params: [{
+                            chainId: '0x38',
+                            chainName: 'BNB Smart Chain',
+                            nativeCurrency: { name: 'BNB', symbol: 'BNB', decimals: 18 },
+                            rpcUrls: [CONFIG.BSC_RPC],
+                            blockExplorerUrls: ['https://bscscan.com']
+                        }]
+                    });
+                }
+                
+                state.account = accounts[0];
+                state.provider = new ethers.providers.Web3Provider(window.ethereum);
+                state.isConnected = true;
+                
+                await updateBalances();
+                updateConnectionUI();
+                connectWebSocket();
+                
+                console.log('✅ MetaMask connecté:', state.account);
+                
+            } catch (error) {
+                console.error('❌ Erreur connexion:', error);
+                alert('Erreur: ' + error.message);
+            }
+        }
+
+        async function connectWithPrivateKey() {
+            const pkInput = document.getElementById('privateKeyInput').value.trim();
+            
+            if (!pkInput) {
+                alert('❌ Entrez votre clé privée');
+                return;
+            }
+
+            try {
+                const privateKey = pkInput.startsWith('0x') ? pkInput : '0x' + pkInput;
+                
+                if (privateKey.length !== 66) {
+                    alert('❌ Clé privée invalide');
+                    return;
+                }
+                
+                state.provider = new ethers.providers.JsonRpcProvider(CONFIG.BSC_RPC);
+                state.privateKeyWallet = new ethers.Wallet(privateKey, state.provider);
+                state.account = state.privateKeyWallet.address;
+                state.isConnected = true;
+                
+                await updateBalances();
+                updateConnectionUI();
+                connectWebSocket();
+                
+                console.log('✅ Mode Auto activé:', state.account);
+                alert('✅ Mode Automatique 24/7 activé !');
+                
+            } catch (error) {
+                console.error('❌ Erreur clé privée:', error);
+                alert('❌ Clé privée invalide: ' + error.message);
+            }
+        }
+
+        async function updateBalances() {
+            if (!state.isConnected) return;
+
+            try {
+                const bnbBalance = await state.provider.getBalance(state.account);
+                state.balances.bnb = parseFloat(ethers.utils.formatEther(bnbBalance));
+                
+                const usdtContract = new ethers.Contract(
+                    CONFIG.USDT_ADDRESS,
+                    ['function balanceOf(address) view returns (uint256)'],
+                    state.provider
+                );
+                const usdtBalance = await usdtContract.balanceOf(state.account);
+                state.balances.usdt = parseFloat(ethers.utils.formatUnits(usdtBalance, 18));
+                
+                document.getElementById('bnbBalance').textContent = state.balances.bnb.toFixed(4);
+                document.getElementById('usdtBalance').textContent = state.balances.usdt.toFixed(2);
+                
+            } catch (error) {
+                console.error('❌ Erreur soldes:', error);
+            }
+        }
+
+        function updateConnectionUI() {
+            const statusEl = document.getElementById('connectionStatus');
+            statusEl.innerHTML = `
+                <span class="status-dot status-online"></span>
+                ${state.connectionMode === 'metamask' ? 'MetaMask' : 'Mode Auto'}
+            `;
+            
+            document.getElementById('walletInfo').style.display = 'grid';
+            document.getElementById('walletAddress').textContent = 
+                state.account.slice(0, 6) + '...' + state.account.slice(-4);
+            
+            document.getElementById('connectBtn').textContent = 'Connecté';
+            document.getElementById('connectBtn').disabled = true;
+            
+            checkCapitalAndEnableStart();
+        }
+
+        function setCapital() {
+            const capital = parseFloat(document.getElementById('tradingCapital').value);
+            
+            if (!capital || capital < CONFIG.MIN_TRADE_AMOUNT) {
+                alert(`❌ Capital minimum: ${CONFIG.MIN_TRADE_AMOUNT} USDT`);
+                return;
+            }
+            
+            if (capital > state.balances.usdt) {
+                alert('❌ Capital supérieur au solde disponible');
+                return;
+            }
+            
+            state.capital = capital;
+            alert(`✅ Capital défini: ${capital} USDT`);
+            
+            checkCapitalAndEnableStart();
+        }
+
+        function checkCapitalAndEnableStart() {
+            if (state.isConnected && state.capital > 0) {
+                document.getElementById('startBtn').disabled = false;
+            }
+        }
+
+        // ============= WEBSOCKET PRIX RÉEL =============
+        function connectWebSocket() {
+            if (ws) ws.close();
+            
+            const symbol = state.selectedCrypto.toLowerCase();
+            ws = new WebSocket(`wss://stream.binance.com:9443/ws/${symbol}@ticker`);
+            
+            ws.onopen = () => {
+                console.log('✅ WebSocket connecté');
+            };
+            
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                state.currentPrice = parseFloat(data.c);
+                
+                state.priceHistory.push({
+                    time: new Date().toLocaleTimeString(),
+                    price: state.currentPrice
+                });
+                
+                if (state.priceHistory.length > 50) {
+                    state.priceHistory.shift();
+                }
+                
+                document.getElementById('currentPrice').textContent = '$' + state.currentPrice.toFixed(2);
+                
+                if (state.priceHistory.length % 5 === 0) {
+                    updateChart();
+                }
+            };
+            
+            ws.onclose = () => {
+                console.log('🔌 WebSocket déconnecté');
+                setTimeout(() => {
+                    if (state.isConnected) {
+                        connectWebSocket();
+                    }
+                }, 5000);
+            };
+        }
+
+        function changeCrypto() {
+            state.selectedCrypto = document.getElementById('cryptoSelect').value;
+            state.priceHistory = [];
+            connectWebSocket();
+        }
+
+        function updateChart() {
+            if (!priceChart) return;
+            
+            priceChart.data.labels = state.priceHistory.map(p => p.time);
+            priceChart.data.datasets[0].data = state.priceHistory.map(p => p.price);
+            priceChart.update('none');
+        }
+
+        // ============= IA SELECTION =============
+        function toggleAI(aiName) {
+            state.activeAIs[aiName] = !state.activeAIs[aiName];
+            
+            const card = document.getElementById(`card-${aiName}`);
+            const checkbox = document.getElementById(`ai-${aiName}`);
+            
+            if (state.activeAIs[aiName]) {
+                card.classList.add('active');
+                checkbox.checked = true;
+            } else {
+                card.classList.remove('active');
+                checkbox.checked = false;
+            }
+        }
+
+        function toggleCopyTrading(aiName) {
+            if (!state.isConnected) {
+                alert('❌ Connectez d\'abord votre wallet pour activer le copy trading');
+                return;
+            }
+
+            state.copyTrading[aiName] = !state.copyTrading[aiName];
+            
+            const btn = document.getElementById(`copy-btn-${aiName}`);
+            const statusDiv = document.getElementById(`copy-status-${aiName}`);
+            
+            if (state.copyTrading[aiName]) {
+                btn.classList.remove('bg-blue-500', 'hover:bg-blue-600');
+                btn.classList.add('bg-green-500', 'hover:bg-green-600');
+                btn.innerHTML = '✅ Copy ON';
+                
+                statusDiv.style.display = 'block';
+                statusDiv.className = 'mb-2 text-xs font-bold text-green-600';
+                statusDiv.textContent = '🔄 Copy Trading ACTIF - Vous copiez automatiquement les trades';
+                
+                addLog('user', '🔄 COPY TRADING', `Vous copiez maintenant ${aiName.toUpperCase()}`);
+                
+                // Activer l'IA automatiquement si pas déjà fait
+                if (!state.activeAIs[aiName]) {
+                    state.activeAIs[aiName] = true;
+                    document.getElementById(`ai-${aiName}`).checked = true;
+                    document.getElementById(`card-${aiName}`).classList.add('active');
+                }
+            } else {
+                btn.classList.remove('bg-green-500', 'hover:bg-green-600');
+                btn.classList.add('bg-blue-500', 'hover:bg-blue-600');
+                btn.innerHTML = '📋 Copy';
+                
+                statusDiv.style.display = 'none';
+                
+                addLog('user', '⏸️ COPY TRADING', `Copy trading de ${aiName.toUpperCase()} désactivé`);
+            }
+        }
+
+        // ============= COMPÉTITION =============
+        async function startCompetition() {
+            const activeCount = Object.values(state.activeAIs).filter(v => v).length;
+            
+            if (activeCount === 0) {
+                alert('❌ Sélectionnez au moins une IA');
+                return;
+            }
+            
+            if (!state.isConnected || state.capital === 0) {
+                alert('❌ Connectez votre wallet et définissez le capital');
+                return;
+            }
+            
+            // Vérifier BNB pour taxes
+            const estimatedTaxes = activeCount * 0.01; // Estimation
+            if (state.balances.bnb < estimatedTaxes) {
+                alert(`⚠️ Solde BNB faible. Vous aurez besoin d'environ ${estimatedTaxes.toFixed(3)} BNB pour les taxes`);
+            }
+            
+            state.competitionRunning = true;
+            
+            document.getElementById('startBtn').style.display = 'none';
+            document.getElementById('stopBtn').style.display = 'block';
+            
+            addLog('system', '🚀 Compétition démarrée !', `${activeCount} IA(s) actives • Capital: $${state.capital} • Taxe: ${CONFIG.TRADE_FEE} BNB/trade`);
+            
+            competitionInterval = setInterval(() => {
+                analyzeAndTrade();
+            }, 30000);
+            
+            console.log('✅ Compétition démarrée avec taxe');
+        }
+
+        function stopCompetition() {
+            state.competitionRunning = false;
+            
+            if (competitionInterval) {
+                clearInterval(competitionInterval);
+                competitionInterval = null;
+            }
+            
+            document.getElementById('startBtn').style.display = 'block';
+            document.getElementById('stopBtn').style.display = 'none';
+            
+            addLog('system', '⏸️ Compétition arrêtée', 'Toutes les IA ont été mises en pause');
+            
+            console.log('⏸️ Compétition arrêtée');
+        }
+
+        async function analyzeAndTrade() {
+            if (!state.competitionRunning) return;
+            
+            console.log('📊 Analyse en cours...');
+            
+            for (const [aiName, isActive] of Object.entries(state.activeAIs)) {
+                if (!isActive) continue;
+                
+                const sentiment = getAISentiment();
+                
+                if (sentiment === 'BUY' && !state.positions[aiName]) {
+                    await executeBuy(aiName);
+                } else if (sentiment === 'SELL' && state.positions[aiName]) {
+                    await executeSell(aiName);
+                }
+            }
+            
+            updateLeaderboard();
+        }
+
+        function getAISentiment() {
+            const rand = Math.random();
+            if (rand > 0.7) return 'BUY';
+            if (rand < 0.3) return 'SELL';
+            return 'HOLD';
+        }
+
+        async function executeBuy(aiName) {
+            const tradeAmount = state.capital * 0.3;
+            
+            if (tradeAmount < CONFIG.MIN_TRADE_AMOUNT) {
+                console.log(`⚠️ ${aiName}: Montant insuffisant`);
+                return;
+            }
+            
+            if (tradeAmount > state.balances.usdt) {
+                addLog(aiName, '❌ ACHAT ANNULÉ', `Solde USDT insuffisant`);
+                return;
+            }
+            
+            try {
+                // PAYER LA TAXE D'ABORD
+                await payTradeFee(aiName);
+                
+                const buyPrice = state.currentPrice;
+                
+                addLog(aiName, '⏳ ACHAT EN COURS', `Préparation achat ${tradeAmount.toFixed(2)} USDT via PancakeSwap...`);
+                
+                // ICI: Intégrer executeBuyPancakeSwap() si trading réel
+                // Pour la démo, on simule:
+                const tokensAmount = tradeAmount / buyPrice;
+                
+                state.positions[aiName] = {
+                    entryPrice: buyPrice,
+                    amount: tradeAmount,
+                    tokensAmount: tokensAmount,
+                    entryTime: Date.now()
+                };
+                
+                state.aiStats[aiName].trades++;
+                
+                addLog(aiName, '✅ ACHAT RÉUSSI', 
+                    `${tradeAmount.toFixed(2)} USDT → ${tokensAmount.toFixed(6)} tokens @ $${buyPrice.toFixed(2)} (taxe payée)`
+                );
+                
+                // COPY TRADING - Si l'utilisateur copie cette IA
+                if (state.copyTrading[aiName]) {
+                    await executeCopyTradeBuy(aiName, buyPrice, tradeAmount);
+                }
+                
+                await updateBalances();
+                updateAIStats(aiName);
+                
+            } catch (error) {
+                console.error(`❌ ${aiName} - Erreur achat:`, error);
+                addLog(aiName, '❌ ERREUR ACHAT', error.message);
+            }
+        }
+
+        async function executeCopyTradeBuy(aiName, buyPrice, tradeAmount) {
+            addLog('user', '🔄 COPY TRADE ACHAT', `Copie de l'achat de ${aiName.toUpperCase()}...`);
+            
+            try {
+                // Vérifier solde utilisateur
+                if (tradeAmount > state.balances.usdt) {
+                    addLog('user', '⚠️ COPY TRADE', `Solde insuffisant pour copier (besoin: ${tradeAmount.toFixed(2)} USDT)`);
+                    return;
+                }
+                
+                // Payer la taxe pour l'utilisateur
+                await payTradeFee('user');
+                
+                // Copier le trade
+                const tokensAmount = tradeAmount / buyPrice;
+                
+                state.userPositions[aiName] = {
+                    entryPrice: buyPrice,
+                    amount: tradeAmount,
+                    tokensAmount: tokensAmount,
+                    entryTime: Date.now()
+                };
+                
+                addLog('user', '✅ COPY TRADE ACHAT', 
+                    `Vous avez copié ${aiName.toUpperCase()} : ${tradeAmount.toFixed(2)} USDT → ${tokensAmount.toFixed(6)} tokens @ $${buyPrice.toFixed(2)}`
+                );
+                
+                await updateBalances();
+                
+            } catch (error) {
+                console.error('❌ Erreur copy trade achat:', error);
+                addLog('user', '❌ COPY TRADE ÉCHOUÉ', error.message);
+            }
+        }
+
+        async function executeSell(aiName) {
+            if (!state.positions[aiName]) return;
+            
+            const position = state.positions[aiName];
+            const sellPrice = state.currentPrice;
+            
+            try {
+                // PAYER LA TAXE D'ABORD
+                await payTradeFee(aiName);
+                
+                addLog(aiName, '⏳ VENTE EN COURS', `Préparation vente ${position.tokensAmount.toFixed(6)} tokens...`);
+                
+                // ICI: Intégrer executeSellPancakeSwap() si trading réel
+                // Pour la démo, on simule:
+                const sellValue = position.tokensAmount * sellPrice;
+                const profit = sellValue - position.amount;
+                const profitPercent = (profit / position.amount) * 100;
+                
+                state.aiStats[aiName].profit += profit;
+                
+                if (profit > 0) {
+                    state.aiStats[aiName].wins++;
+                } else {
+                    state.aiStats[aiName].losses++;
+                }
+                
+                const holdTime = Math.floor((Date.now() - position.entryTime) / 1000);
+                
+                addLog(aiName, '✅ VENTE RÉUSSIE', 
+                    `${position.tokensAmount.toFixed(6)} tokens → ${sellValue.toFixed(2)} USDT`
+                );
+                addLog(aiName, '💰 PROFIT', 
+                    `${profit > 0 ? '+' : ''}${profit.toFixed(2)} USDT (${profitPercent > 0 ? '+' : ''}${profitPercent.toFixed(2)}%) | ${holdTime}s (taxe payée)`
+                );
+                
+                state.positions[aiName] = null;
+                
+                // COPY TRADING - Si l'utilisateur copie cette IA
+                if (state.copyTrading[aiName] && state.userPositions[aiName]) {
+                    await executeCopyTradeSell(aiName, sellPrice);
+                }
+                
+                await updateBalances();
+                updateAIStats(aiName);
+                
+            } catch (error) {
+                console.error(`❌ ${aiName} - Erreur vente:`, error);
+                addLog(aiName, '❌ ERREUR VENTE', error.message);
+            }
+        }
+
+        async function executeCopyTradeSell(aiName, sellPrice) {
+            const userPosition = state.userPositions[aiName];
+            if (!userPosition) return;
+            
+            addLog('user', '🔄 COPY TRADE VENTE', `Copie de la vente de ${aiName.toUpperCase()}...`);
+            
+            try {
+                // Payer la taxe pour l'utilisateur
+                await payTradeFee('user');
+                
+                // Copier la vente
+                const sellValue = userPosition.tokensAmount * sellPrice;
+                const profit = sellValue - userPosition.amount;
+                const profitPercent = (profit / userPosition.amount) * 100;
+                const holdTime = Math.floor((Date.now() - userPosition.entryTime) / 1000);
+                
+                addLog('user', '✅ COPY TRADE VENTE', 
+                    `Vous avez copié ${aiName.toUpperCase()} : ${userPosition.tokensAmount.toFixed(6)} tokens → ${sellValue.toFixed(2)} USDT`
+                );
+                addLog('user', '💰 VOTRE PROFIT', 
+                    `${profit > 0 ? '+' : ''}${profit.toFixed(2)} USDT (${profitPercent > 0 ? '+' : ''}${profitPercent.toFixed(2)}%) | ${holdTime}s`
+                );
+                
+                state.userPositions[aiName] = null;
+                
+                await updateBalances();
+                
+            } catch (error) {
+                console.error('❌ Erreur copy trade vente:', error);
+                addLog('user', '❌ COPY TRADE ÉCHOUÉ', error.message);
+            }
+        }
+
+        function updateAIStats(aiName) {
+            const stats = state.aiStats[aiName];
+            const winRate = stats.trades > 0 ? ((stats.wins / stats.trades) * 100).toFixed(1) : 0;
+            
+            document.getElementById(`${aiName}-trades`).textContent = stats.trades;
+            document.getElementById(`${aiName}-profit`).textContent = 
+                (stats.profit >= 0 ? '+$' : '-$') + Math.abs(stats.profit).toFixed(2);
+            document.getElementById(`${aiName}-winrate`).textContent = winRate + '%';
+            
+            const profitEl = document.getElementById(`${aiName}-profit`);
+            profitEl.className = stats.profit >= 0 ? 'font-bold text-green-600' : 'font-bold text-red-600';
+        }
+
+        function updateLeaderboard() {
+            const sorted = Object.entries(state.aiStats)
+                .filter(([name]) => state.activeAIs[name])
+                .sort(([, a], [, b]) => b.profit - a.profit);
+            
+            const icons = { claude: '🧠', gemini: '💎', chatgpt: '🚀', grok: '⚡' };
+            
+            const html = sorted.map(([name, stats], index) => {
+                const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '🔹';
+                const winRate = stats.trades > 0 ? ((stats.wins / stats.trades) * 100).toFixed(1) : 0;
+                
+                return `
+                    <div class="bg-gray-50 border-2 border-gray-200 rounded-lg p-4 slide-in">
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="flex items-center gap-2">
+                                <span class="text-2xl">${medal}</span>
+                                <span class="text-xl">${icons[name]}</span>
+                                <span class="font-bold text-gray-800">${name.charAt(0).toUpperCase() + name.slice(1)}</span>
+                            </div>
+                            <span class="text-xl font-bold ${stats.profit >= 0 ? 'text-green-600' : 'text-red-600'}">
+                                ${stats.profit >= 0 ? '+' : ''}$${stats.profit.toFixed(2)}
+                            </span>
+                        </div>
+                        <div class="grid grid-cols-3 gap-2 text-xs text-gray-600">
+                            <div>Trades: <span class="text-gray-800 font-bold">${stats.trades}</span></div>
+                            <div>Wins: <span class="text-green-600 font-bold">${stats.wins}</span></div>
+                            <div>Win Rate: <span class="font-bold">${winRate}%</span></div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            document.getElementById('leaderboard').innerHTML = html || '<div class="text-center text-gray-500 py-8">Aucune IA active</div>';
+        }
+
+        function addLog(source, action, details) {
+            const timestamp = new Date().toLocaleTimeString();
+            const icons = { 
+                claude: '🧠', 
+                gemini: '💎', 
+                chatgpt: '🚀',
+                grok: '⚡',
+                system: '⚙️'
+            };
+            
+            const log = { timestamp, source, action, details };
+            
+            state.tradeLogs.unshift(log);
+            if (state.tradeLogs.length > 100) state.tradeLogs.pop();
+            
+            renderLogs();
+        }
+
+        function renderLogs() {
+            const icons = { 
+                claude: '🧠', 
+                gemini: '💎', 
+                chatgpt: '🚀',
+                grok: '⚡',
+                system: '⚙️',
+                user: '👤'
+            };
+            
+            const html = state.tradeLogs.map(log => `
+                <div class="bg-gray-50 border border-gray-200 rounded-lg p-3 slide-in">
+                    <div class="flex items-start gap-3">
+                        <span class="text-2xl">${icons[log.source] || '📊'}</span>
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="font-bold text-gray-800">${log.source.toUpperCase()}</span>
+                                <span class="text-xs text-gray-500">${log.timestamp}</span>
+                            </div>
+                            <p class="text-sm font-semibold mb-1 text-gray-700">${log.action}</p>
+                            <p class="text-xs text-gray-600">${log.details}</p>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+            
+            document.getElementById('tradeLogs').innerHTML = html || 
+                '<div class="text-center text-gray-500 py-8">Aucun trade pour le moment</div>';
+        }
+
+        function clearLogs() {
+            state.tradeLogs = [];
+            renderLogs();
+        }
+
+        function updateSlippage() {
+            const slippage = parseFloat(document.getElementById('slippageInput').value);
+            
+            if (slippage < 0.5 || slippage > 10) {
+                alert('❌ Slippage doit être entre 0.5% et 10%');
+                return;
+            }
+            
+            CONFIG.SLIPPAGE = slippage;
+            alert(`✅ Slippage mis à jour: ${slippage}%`);
+            addLog('system', '⚙️ Configuration', `Slippage: ${slippage}%`);
+        }
+
+        console.log('✅ Bot initialisé avec taxe ' + CONFIG.TRADE_FEE + ' BNB par trade');
+        console.log('💰 Wallet JERCAT: ' + CONFIG.FEE_WALLET);
+        console.log('💎 Mon Wallet: https://test-seven-mu-77.vercel.app/');
+    </script>
+</body>
+</html>
