@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🤖 AI Trading Bot - LIVE Trading</title>
+    <title>🤖 AI Trading Bot - JERCAT FIXED</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -66,15 +66,6 @@
                     <li><strong>IRRÉVERSIBLE</strong> - Les transactions blockchain ne peuvent pas être annulées</li>
                     <li><strong>RISQUE ÉLEVÉ</strong> - Trading automatique = décisions sans votre validation</li>
                 </ul>
-                <div class="bg-yellow-900 border-2 border-yellow-500 rounded-lg p-4 mt-4">
-                    <p class="font-bold text-yellow-200">✅ RECOMMANDATIONS SÉCURITÉ :</p>
-                    <ul class="text-sm text-yellow-200 space-y-1 mt-2">
-                        <li>• Utilisez un WALLET DÉDIÉ (créez-en un nouveau)</li>
-                        <li>• Commencez avec un PETIT CAPITAL (50-100 USDT max)</li>
-                        <li>• Gardez seulement le BNB nécessaire pour les trades</li>
-                        <li>• Surveillez CONSTAMMENT pendant les premières heures</li>
-                    </ul>
-                </div>
             </div>
         </div>
 
@@ -310,7 +301,6 @@
             provider: null,
             signer: null,
             privateKeyWallet: null,
-            jercatProvider: null,
             isConnected: false,
             balances: { bnb: 0, usdt: 0 },
             capital: 0,
@@ -335,7 +325,7 @@
 
         // ============= INIT =============
         window.addEventListener('DOMContentLoaded', () => {
-            console.log('🔴 LIVE TRADING BOT - DANGER MODE ACTIVATED');
+            console.log('🔴 LIVE TRADING BOT - JERCAT FIXED VERSION');
             console.log('💰 Wallet JERCAT:', CONFIG.FEE_WALLET);
             initChart();
             renderAICards();
@@ -581,88 +571,61 @@
             }
         }
 
-        // ============= CONNEXION =============
-        function switchConnectionMode() {
-            state.connectionMode = document.getElementById('connectionMode').value;
-            
-            document.getElementById('jercatSection').style.display = 'none';
-            document.getElementById('metamaskSection').style.display = 'none';
-            document.getElementById('privatekeySection').style.display = 'none';
-            
-            if (state.connectionMode === 'jercat') {
-                document.getElementById('jercatSection').style.display = 'block';
-            } else if (state.connectionMode === 'metamask') {
-                document.getElementById('metamaskSection').style.display = 'block';
-            } else {
-                document.getElementById('privatekeySection').style.display = 'block';
+        // ============= CONNEXION JERCAT WALLET (FIXED) =============
+        
+        // Écouter les messages du JERCAT Wallet
+        window.addEventListener('message', async (event) => {
+            // Vérifier l'origine
+            if (!event.origin.includes('test-seven-mu-77.vercel.app') && 
+                !event.origin.includes('localhost')) {
+                return;
             }
-        }
+
+            const data = event.data;
+            console.log('📨 Message reçu de JERCAT:', data);
+
+            if (data.type === 'JERCAT_WALLET_CONNECTED' && data.privateKey) {
+                try {
+                    addLog('system', '💎 JERCAT', 'Connexion en cours...');
+                    
+                    // Créer un provider BSC standard
+                    state.provider = new ethers.providers.JsonRpcProvider(CONFIG.BSC_RPC);
+                    
+                    // Créer le wallet à partir de la clé privée
+                    const key = data.privateKey.startsWith('0x') ? data.privateKey : '0x' + data.privateKey;
+                    state.signer = new ethers.Wallet(key, state.provider);
+                    state.account = state.signer.address;
+                    state.isConnected = true;
+                    
+                    addLog('system', '✅ WALLET', `Adresse: ${state.account.slice(0, 10)}...`);
+                    
+                    // Charger les balances
+                    await updateBalances();
+                    updateConnectionUI();
+                    connectWebSocket();
+                    
+                    addLog('system', '🎉 JERCAT', 'Connexion réussie!');
+                    
+                } catch (error) {
+                    console.error('❌ JERCAT error:', error);
+                    addLog('system', '❌ ERROR', error.message);
+                    alert('❌ Erreur de connexion JERCAT:\n' + error.message);
+                }
+            }
+        });
 
         async function connectJERCAT() {
             try {
-                // Détection du wallet JERCAT via postMessage
-                addLog('system', '💎 JERCAT', 'Connexion au wallet...');
+                addLog('system', '💎 JERCAT', 'Ouverture du wallet...');
                 
-                // Ouvrir une fenêtre popup du wallet JERCAT
-                const popup = window.open(
-                    CONFIG.JERCAT_WALLET_URL + '?connect=true&origin=' + encodeURIComponent(window.location.origin),
+                // Ouvrir le JERCAT Wallet dans une nouvelle fenêtre
+                window.open(
+                    CONFIG.JERCAT_WALLET_URL + '?connect=bot',
                     'JERCAT Wallet',
-                    'width=400,height=600'
+                    'width=450,height=700,left=100,top=100'
                 );
                 
-                if (!popup) {
-                    alert('❌ Popup bloquée. Autorisez les popups pour ce site.');
-                    return;
-                }
-                
-                // Écouter la réponse du wallet
-                const messageHandler = async (event) => {
-                    // Vérifier l'origine pour la sécurité
-                    if (event.origin !== new URL(CONFIG.JERCAT_WALLET_URL).origin) return;
-                    
-                    const data = event.data;
-                    
-                    if (data.type === 'JERCAT_CONNECTED') {
-                        window.removeEventListener('message', messageHandler);
-                        
-                        if (data.chainId !== CONFIG.CHAIN_ID) {
-                            alert('❌ Veuillez basculer sur BSC Mainnet dans votre wallet JERCAT');
-                            popup.close();
-                            return;
-                        }
-                        
-                        // Créer un provider custom qui communique avec le wallet
-                        state.jercatProvider = new JERCATProvider(popup);
-                        state.provider = state.jercatProvider;
-                        state.account = data.address;
-                        state.signer = state.jercatProvider.getSigner();
-                        state.isConnected = true;
-                        
-                        await updateBalances();
-                        updateConnectionUI();
-                        connectWebSocket();
-                        
-                        addLog('system', '✅ JERCAT', 'Connecté: ' + state.account.slice(0, 10) + '...');
-                        console.log('✅ JERCAT Wallet connected:', state.account);
-                        
-                        popup.close();
-                    } else if (data.type === 'JERCAT_REJECTED') {
-                        window.removeEventListener('message', messageHandler);
-                        addLog('system', '❌ JERCAT', 'Connexion refusée');
-                        popup.close();
-                    }
-                };
-                
-                window.addEventListener('message', messageHandler);
-                
-                // Timeout si pas de réponse en 60 secondes
-                setTimeout(() => {
-                    window.removeEventListener('message', messageHandler);
-                    if (popup && !popup.closed) {
-                        popup.close();
-                        alert('⏱️ Délai d\'attente dépassé');
-                    }
-                }, 60000);
+                addLog('system', '⏳ ATTENTE', 'En attente de la connexion...');
                 
             } catch (error) {
                 console.error('❌ JERCAT connection error:', error);
@@ -670,83 +633,8 @@
             }
         }
 
-        // Custom Provider pour JERCAT Wallet
-        class JERCATProvider extends ethers.providers.BaseProvider {
-            constructor(popup) {
-                super(CONFIG.CHAIN_ID);
-                this.popup = popup;
-                this.rpcProvider = new ethers.providers.JsonRpcProvider(CONFIG.BSC_RPC);
-            }
-            
-            async perform(method, params) {
-                // Pour les lectures, utiliser le RPC direct
-                if (['getBalance', 'call', 'getCode', 'getStorageAt', 'getBlock', 'getTransaction', 'getTransactionReceipt'].includes(method)) {
-                    return this.rpcProvider.perform(method, params);
-                }
-                
-                // Pour les écritures, demander au wallet
-                return new Promise((resolve, reject) => {
-                    const requestId = Date.now() + Math.random();
-                    
-                    const messageHandler = (event) => {
-                        const data = event.data;
-                        if (data.requestId === requestId) {
-                            window.removeEventListener('message', messageHandler);
-                            
-                            if (data.type === 'JERCAT_RESPONSE') {
-                                resolve(data.result);
-                            } else if (data.type === 'JERCAT_ERROR') {
-                                reject(new Error(data.error));
-                            }
-                        }
-                    };
-                    
-                    window.addEventListener('message', messageHandler);
-                    
-                    this.popup.postMessage({
-                        type: 'JERCAT_REQUEST',
-                        requestId,
-                        method,
-                        params
-                    }, CONFIG.JERCAT_WALLET_URL);
-                    
-                    setTimeout(() => {
-                        window.removeEventListener('message', messageHandler);
-                        reject(new Error('Request timeout'));
-                    }, 30000);
-                });
-            }
-            
-            getSigner() {
-                return new JERCATSigner(this);
-            }
-        }
-
-        class JERCATSigner extends ethers.Signer {
-            constructor(provider) {
-                super();
-                this.provider = provider;
-            }
-            
-            async getAddress() {
-                return state.account;
-            }
-            
-            async signMessage(message) {
-                return this.provider.perform('eth_sign', [state.account, message]);
-            }
-            
-            async sendTransaction(transaction) {
-                const tx = await this.populateTransaction(transaction);
-                const signedTx = await this.provider.perform('eth_sendTransaction', [tx]);
-                return this.provider.getTransaction(signedTx);
-            }
-            
-            connect(provider) {
-                return new JERCATSigner(provider);
-            }
-        }
-
+        // ============= CONNEXION METAMASK =============
+        
         async function connectMetaMask() {
             if (!window.ethereum) {
                 alert('❌ MetaMask non installé');
@@ -781,6 +669,8 @@
             }
         }
 
+        // ============= CONNEXION CLÉE PRIVÉE =============
+        
         async function connectWithPrivateKey() {
             const pkInput = document.getElementById('privateKeyInput').value.trim();
             
@@ -820,13 +710,33 @@
             }
         }
 
+        // ============= UI FUNCTIONS =============
+        
+        function switchConnectionMode() {
+            state.connectionMode = document.getElementById('connectionMode').value;
+            
+            document.getElementById('jercatSection').style.display = 'none';
+            document.getElementById('metamaskSection').style.display = 'none';
+            document.getElementById('privatekeySection').style.display = 'none';
+            
+            if (state.connectionMode === 'jercat') {
+                document.getElementById('jercatSection').style.display = 'block';
+            } else if (state.connectionMode === 'metamask') {
+                document.getElementById('metamaskSection').style.display = 'block';
+            } else {
+                document.getElementById('privatekeySection').style.display = 'block';
+            }
+        }
+
         async function updateBalances() {
             if (!state.isConnected) return;
 
             try {
+                // BNB Balance
                 const bnbBalance = await state.provider.getBalance(state.account);
                 state.balances.bnb = parseFloat(ethers.utils.formatEther(bnbBalance));
                 
+                // USDT Balance
                 const usdtContract = new ethers.Contract(
                     CONFIG.USDT_ADDRESS,
                     CONFIG.ERC20_ABI,
@@ -838,8 +748,11 @@
                 document.getElementById('bnbBalance').textContent = state.balances.bnb.toFixed(4);
                 document.getElementById('usdtBalance').textContent = state.balances.usdt.toFixed(2);
                 
+                addLog('system', '💰 BALANCE', `BNB: ${state.balances.bnb.toFixed(4)} • USDT: ${state.balances.usdt.toFixed(2)}`);
+                
             } catch (error) {
                 console.error('❌ Balance error:', error);
+                addLog('system', '❌ BALANCE', error.message);
             }
         }
 
@@ -886,6 +799,8 @@
             state.capital = capital;
             alert(`✅ Capital: ${capital} USDT`);
             
+            addLog('system', '💰 CAPITAL', `Défini: ${capital} USDT`);
+            
             checkCapitalAndEnableStart();
         }
 
@@ -914,7 +829,10 @@
             const symbol = state.selectedCrypto.toLowerCase();
             ws = new WebSocket(`wss://stream.binance.com:9443/ws/${symbol}@ticker`);
             
-            ws.onopen = () => console.log('✅ WebSocket connected');
+            ws.onopen = () => {
+                console.log('✅ WebSocket connected');
+                addLog('system', '📡 BINANCE', 'WebSocket connecté');
+            };
             
             ws.onmessage = (event) => {
                 const data = JSON.parse(event.data);
@@ -990,8 +908,8 @@
             
             const estimatedTaxes = activeCount * 0.01;
             if (state.balances.bnb < estimatedTaxes) {
-                alert(`⚠️ BNB faible. Besoin: ${estimatedTaxes.toFixed(3)} BNB`);
-                return;
+                alert(`⚠️ BNB faible. Besoin: ${estimatedTaxes.toFixed(3)} BNB pour les taxes`);
+                if (!confirm('Continuer quand même ?')) return;
             }
             
             if (!confirm(`🔴 DÉMARRER LIVE TRADING ?\n\n- ${activeCount} IA actives\n- Capital: $${state.capital}\n- Risque de perte totale\n\nCONFIRMER ?`)) {
@@ -1008,6 +926,9 @@
             competitionInterval = setInterval(() => {
                 analyzeAndTrade();
             }, 60000);
+            
+            // Première analyse immédiate
+            setTimeout(() => analyzeAndTrade(), 5000);
             
             console.log('🔴 LIVE TRADING STARTED');
         }
@@ -1118,6 +1039,7 @@
             if (!state.competitionRunning) return;
             
             console.log('📊 Analyzing...');
+            addLog('system', '📊 ANALYSE', 'Vérification des signaux...');
             
             for (const [aiName, isActive] of Object.entries(state.activeAIs)) {
                 if (!isActive) continue;
@@ -1302,9 +1224,9 @@
             }
         });
 
-        console.log('🔴 LIVE TRADING BOT LOADED');
+        console.log('🔴 LIVE TRADING BOT - JERCAT FIXED');
         console.log('⚠️ REAL MONEY AT RISK');
-        console.log('💎 JERCAT Wallet integration enabled');
+        console.log('💎 JERCAT Wallet integration v2.0');
     </script>
 </body>
 </html>
