@@ -588,7 +588,25 @@
             return false;
         };
 
-        function debugLog(msg, type = 'info') {
+        // 🔧 Système de logs optimisé avec limitation
+        let logCount = 0;
+        const MAX_LOGS_PER_MINUTE = 30;
+        let lastLogReset = Date.now();
+
+        function debugLog(msg, type = 'info', force = false) {
+            // Reset compteur toutes les minutes
+            if (Date.now() - lastLogReset > 60000) {
+                logCount = 0;
+                lastLogReset = Date.now();
+            }
+
+            // Limite les logs sauf si forcé (pour événements critiques)
+            if (!force && logCount >= MAX_LOGS_PER_MINUTE) {
+                return; // Ignore les logs excessifs
+            }
+
+            logCount++;
+
             const time = new Date().toLocaleTimeString('fr-FR');
             const color = type === 'error' ? 'text-red-400' : type === 'success' ? 'text-green-400' : type === 'warning' ? 'text-yellow-400' : 'color: #f59e0b;';
             const console = document.getElementById('debugConsole');
@@ -1016,23 +1034,32 @@
         function startBot() {
             if (!verifyRealMode()) return;
             
-            debugLog('🚀 BOT DÉMARRÉ - HYBRID EXIT MODE', 'success');
-            debugLog(`💰 Capital: ${state.tradingCapital} USDT`, 'info');
-            debugLog('💎 Frais JERCAT: 0.001 BNB par trade', 'info');
+            debugLog('🚀 BOT DÉMARRÉ - HYBRID EXIT MODE', 'success', true);
+            debugLog(`💰 Capital: ${state.tradingCapital} USDT`, 'info', true);
+            debugLog('💎 Frais JERCAT: 0.001 BNB par trade', 'info', true);
             if (state.jercatTrusted) {
-                debugLog('🤖 Mode AUTO-VALIDATION actif', 'success');
+                debugLog('🤖 Mode AUTO-VALIDATION actif', 'success', true);
             }
             
+            let iterationCount = 0;
+            
             botInterval = setInterval(() => {
+                iterationCount++;
+                
                 if (state.priceHistory.length < 50) {
-                    debugLog(`⏳ Collecte: ${state.priceHistory.length}/50`, 'warning');
+                    // Log seulement toutes les 10 itérations pour éviter spam
+                    if (iterationCount % 10 === 0) {
+                        debugLog(`⏳ Collecte: ${state.priceHistory.length}/50`, 'warning');
+                    }
                     return;
                 }
                 
                 updateIndicators();
                 const signal = getTradeSignal();
                 
+                // Log seulement quand il y a un signal (événement important)
                 if (signal.signal && !state.isTrading) {
+                    debugLog(`🎯 SIGNAL DÉTECTÉ: ${signal.signal} (${signal.score}%) - ${signal.reason}`, 'success', true);
                     executeTrade(signal.signal, signal.score, signal.reason);
                 }
             }, 3000);
@@ -1188,7 +1215,7 @@
         async function executeTrade(tradeType, score, reason) {
             state.isTrading = true;
             
-            debugLog(`${tradeType === 'BUY' ? '🟢' : '🔴'} ${tradeType} - ${reason}`, tradeType === 'BUY' ? 'success' : 'warning');
+            debugLog(`${tradeType === 'BUY' ? '🟢' : '🔴'} ${tradeType} - ${reason}`, tradeType === 'BUY' ? 'success' : 'warning', true);
             
             const percent = parseFloat(document.getElementById('tradePercent').value);
             const tradeAmount = (state.tradingCapital * percent) / 100;
@@ -1197,7 +1224,7 @@
             let actualFees = 0;
             
             if (!state.isConnected || !state.wallet) {
-                debugLog(`❌ Wallet non connecté!`, 'error');
+                debugLog(`❌ Wallet non connecté!`, 'error', true);
                 alert('⚠️ Connectez votre wallet');
                 state.isTrading = false;
                 return;
@@ -1206,7 +1233,7 @@
             try {
                 const network = await state.provider.getNetwork();
                 if (network.chainId !== 56) {
-                    debugLog(`❌ Mauvais network: ${network.chainId}`, 'error');
+                    debugLog(`❌ Mauvais network: ${network.chainId}`, 'error', true);
                     alert(`⚠️ Changez vers BSC Mainnet (56)`);
                     state.isTrading = false;
                     return;
@@ -1215,7 +1242,7 @@
                 // 💎 PAIEMENT FRAIS JERCAT
                 const feesSent = await sendJercatFee();
                 if (!feesSent) {
-                    debugLog(`⚠️ Impossible d'envoyer les frais JERCAT`, 'warning');
+                    debugLog(`⚠️ Impossible d'envoyer les frais JERCAT`, 'warning', true);
                     if (!confirm('⚠️ Les frais JERCAT n\'ont pas pu être envoyés.\nContinuer quand même ?')) {
                         state.isTrading = false;
                         return;
@@ -1226,33 +1253,28 @@
                 const usdtBalance = await usdtContract.balanceOf(state.account);
                 const usdtBalanceFormatted = parseFloat(ethers.utils.formatUnits(usdtBalance, 18));
                 
-                debugLog(`💰 Balance: ${usdtBalanceFormatted.toFixed(2)} USDT`, 'info');
-                
                 if (tradeType === 'BUY' && usdtBalanceFormatted < tradeAmount) {
-                    debugLog(`❌ Balance insuffisante`, 'error');
+                    debugLog(`❌ Balance insuffisante: ${usdtBalanceFormatted.toFixed(2)} USDT`, 'error', true);
                     alert(`❌ Balance USDT insuffisante!`);
                     state.isTrading = false;
                     return;
                 }
                 
-                debugLog('🔗 Exécution blockchain...', 'warning');
+                debugLog('🔗 Exécution blockchain...', 'warning', true);
                 
                 const tokenAddress = getTokenAddress(state.selectedCrypto);
                 const PANCAKE_ROUTER = '0x10ED43C718714eb63d5aA57B78B54704E256024E';
                 
                 if (tradeType === 'BUY') {
-                    // 🔧 FIX: Récupérer les décimales du token
                     const tokenContract = new ethers.Contract(tokenAddress, TOKEN_ABI, state.provider);
                     const tokenDecimals = await tokenContract.decimals();
                     state.tokenDecimals = tokenDecimals;
                     
                     const amountInWei = ethers.utils.parseUnits(tradeAmount.toFixed(6), 18);
                     
-                    debugLog('📝 Approbation USDT...', 'info');
                     const usdtSigner = new ethers.Contract(USDT, USDT_ABI, state.wallet);
                     const approveTx = await usdtSigner.approve(PANCAKE_ROUTER, amountInWei);
                     await approveTx.wait();
-                    debugLog('✅ USDT approuvé', 'success');
                     
                     const routerABI = ['function swapExactTokensForTokens(uint amountIn, uint amountOutMin, address[] calldata path, address to, uint deadline) external returns (uint[] memory amounts)'];
                     const router = new ethers.Contract(PANCAKE_ROUTER, routerABI, state.wallet);
@@ -1264,33 +1286,29 @@
                         { gasLimit: ethers.BigNumber.from('300000') }
                     );
                     
-                    debugLog(`⏳ TX: ${tx.hash.slice(0, 10)}...`, 'info');
+                    debugLog(`⏳ TX: ${tx.hash.slice(0, 10)}...`, 'info', true);
                     const receipt = await tx.wait();
-                    debugLog(`✅ Confirmé! Bloc: ${receipt.blockNumber}`, 'success');
+                    debugLog(`✅ Confirmé! Bloc: ${receipt.blockNumber}`, 'success', true);
                     
                     actualFees = parseFloat(ethers.utils.formatEther(receipt.gasUsed.mul(receipt.effectiveGasPrice)));
                     
-                    // 🔧 FIX: Récupérer la quantité EXACTE de tokens reçus
                     const tokenBalance = await tokenContract.balanceOf(state.account);
                     state.positionTokens = tokenBalance;
                     
-                    debugLog(`💎 Tokens reçus: ${ethers.utils.formatUnits(tokenBalance, tokenDecimals)}`, 'success');
+                    debugLog(`💎 Tokens reçus: ${ethers.utils.formatUnits(tokenBalance, tokenDecimals)}`, 'success', true);
                     
                 } else {
-                    // 🔧 FIX: Vendre la quantité EXACTE de tokens achetés
                     const tokenContract = new ethers.Contract(tokenAddress, TOKEN_ABI, state.wallet);
                     
                     if (state.positionTokens.isZero()) {
-                        debugLog(`❌ Aucun token en position`, 'error');
+                        debugLog(`❌ Aucun token en position`, 'error', true);
                         alert('❌ Aucun token à vendre');
                         state.isTrading = false;
                         return;
                     }
                     
-                    debugLog('📝 Approbation token...', 'info');
                     const approveTx = await tokenContract.approve(PANCAKE_ROUTER, state.positionTokens);
                     await approveTx.wait();
-                    debugLog('✅ Token approuvé', 'success');
                     
                     const routerABI = ['function swapExactTokensForTokens(uint amountIn, uint amountOutMin, address[] calldata path, address to, uint deadline) external returns (uint[] memory amounts)'];
                     const router = new ethers.Contract(PANCAKE_ROUTER, routerABI, state.wallet);
@@ -1302,15 +1320,15 @@
                         { gasLimit: ethers.BigNumber.from('300000') }
                     );
                     
-                    debugLog(`⏳ TX: ${tx.hash.slice(0, 10)}...`, 'info');
+                    debugLog(`⏳ TX: ${tx.hash.slice(0, 10)}...`, 'info', true);
                     const receipt = await tx.wait();
-                    debugLog(`✅ Confirmé! Bloc: ${receipt.blockNumber}`, 'success');
+                    debugLog(`✅ Confirmé! Bloc: ${receipt.blockNumber}`, 'success', true);
                     
                     actualFees = parseFloat(ethers.utils.formatEther(receipt.gasUsed.mul(receipt.effectiveGasPrice)));
                 }
                 
             } catch (error) {
-                debugLog(`❌ ERREUR: ${error.message}`, 'error');
+                debugLog(`❌ ERREUR: ${error.message}`, 'error', true);
                 alert(`❌ Erreur: ${error.message.slice(0, 100)}`);
                 state.isTrading = false;
                 return;
@@ -1324,7 +1342,7 @@
                 state.maxProfitReached = 0;
                 state.lastProfitCheck = 0;
                 
-                debugLog(`📈 POSITION OUVERTE`, 'success');
+                debugLog(`📈 POSITION OUVERTE @ $${state.currentPrice}`, 'success', true);
                 
             } else {
                 const profitPct = ((state.currentPrice - state.lastBuyPrice) / state.lastBuyPrice) * 100;
@@ -1332,12 +1350,12 @@
                 
                 state.tradingCapital += state.positionAmount + netProfit;
                 
-                debugLog(`📉 FERMÉE`, netProfit >= 0 ? 'success' : 'error');
-                debugLog(`💎 NET: ${netProfit >= 0 ? '+' : ''}${netProfit.toFixed(2)} USDT`, netProfit >= 0 ? 'success' : 'error');
+                debugLog(`📉 FERMÉE @ $${state.currentPrice}`, netProfit >= 0 ? 'success' : 'error', true);
+                debugLog(`💎 NET: ${netProfit >= 0 ? '+' : ''}${netProfit.toFixed(2)} USDT (${profitPct.toFixed(2)}%)`, netProfit >= 0 ? 'success' : 'error', true);
                 
                 state.currentPosition = null;
                 state.maxProfitReached = 0;
-                state.positionTokens = ethers.BigNumber.from('0'); // Reset
+                state.positionTokens = ethers.BigNumber.from('0');
                 
                 if (netProfit > 0) state.portfolio.wins++;
                 else state.portfolio.losses++;
