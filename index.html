@@ -64,7 +64,7 @@
                         <span>🔑</span>
                         <span>Clé Privée</span>
                     </button>
-                    <button onclick="disconnectWallet()" id="disconnectBtn" class="hidden flex items-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 shadow-lg">
+                    <button onclick="disconnectWallet()" id="disconnectBtn" class="hidden items-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 shadow-lg">
                         <span>🚪</span>
                         <span>Déconnecter</span>
                     </button>
@@ -398,7 +398,7 @@
 
     <script>
         // ═══════════════════════════════════════════════════════════════
-        // 🤖 JERCAT HYBRID EXIT BOT - VERSION COMPLÈTE
+        // 🤖 JERCAT HYBRID EXIT BOT - VERSION CORRIGÉE
         // ═══════════════════════════════════════════════════════════════
 
         const JERCAT_WALLET = '0x7C08b7E9862bd3826c0de1741a2d26770C39903d';
@@ -422,6 +422,7 @@
                 stopBot();
             }
 
+            // Reset complet de l'état
             state.account = null;
             state.wallet = null;
             state.provider = null;
@@ -432,23 +433,35 @@
             state.positionTokens = 0;
             state.maxProfitReached = 0;
             state.lastProfitCheck = 0;
+            state.capitalSet = false;
+            state.botRunning = false;
 
+            // Reset du bouton de connexion
             document.getElementById('connectBtn').style.background = '';
             document.getElementById('connectBtn').style.color = '';
             document.getElementById('connectBtn').className = 'flex items-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 shadow-lg';
             document.getElementById('walletText').textContent = 'MetaMask';
-            document.getElementById('disconnectBtn').classList.add('hidden');
             
+            // Cacher le bouton de déconnexion avec les bonnes classes
+            const disconnectBtn = document.getElementById('disconnectBtn');
+            disconnectBtn.classList.add('hidden');
+            disconnectBtn.classList.remove('flex');
+            
+            // Reset des status
             document.getElementById('walletStatus').innerHTML = '<span class="text-red-400">🔴 Non</span>';
             document.getElementById('jercatStatus').innerHTML = '<span style="color: #f59e0b;">⏳ En attente...</span>';
             document.getElementById('positionStatus').textContent = '⚪ None';
 
+            // Cacher les sections
             document.getElementById('cryptoSelector').classList.add('hidden');
             document.getElementById('capitalSection').classList.add('hidden');
             document.getElementById('statsCards').classList.add('hidden');
 
+            // Reset du bouton bot
             document.getElementById('toggleBotBtn').disabled = true;
             document.getElementById('toggleBotBtn').className = 'flex items-center gap-2 px-6 py-3 rounded-xl font-semibold bg-gray-600 cursor-not-allowed';
+            document.getElementById('botIcon').textContent = '▶️';
+            document.getElementById('botText').textContent = 'Start';
 
             debugLog('🚪 Déconnecté du wallet', 'warning', true);
             alert('✅ Déconnexion réussie !');
@@ -1446,8 +1459,12 @@
         }
 
         function updateUI() {
+            const disconnectBtn = document.getElementById('disconnectBtn');
+            
             if (state.isConnected) {
-                document.getElementById('disconnectBtn').classList.remove('hidden');
+                // Afficher le bouton de déconnexion avec flex
+                disconnectBtn.classList.remove('hidden');
+                disconnectBtn.classList.add('flex');
                 
                 if (state.connectionMethod === 'jercat-wallet') {
                     document.getElementById('connectBtn').style.background = 'linear-gradient(135deg, #f59e0b 0%, #f97316 100%)';
@@ -1465,7 +1482,9 @@
                     document.getElementById('walletStatus').innerHTML = '<span style="color: #10b981;">🟢 MetaMask</span>';
                 }
             } else {
-                document.getElementById('disconnectBtn').classList.add('hidden');
+                // Cacher le bouton de déconnexion
+                disconnectBtn.classList.add('hidden');
+                disconnectBtn.classList.remove('flex');
             }
             
             if (state.botRunning) {
